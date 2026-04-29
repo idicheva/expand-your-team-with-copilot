@@ -472,6 +472,60 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Escape a string for safe use in an HTML attribute value
+  function escapeHtmlAttr(str) {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  // Function to build share buttons HTML for an activity
+  function createShareButtonsHtml(name, description, schedule) {
+    const shareText = encodeURIComponent(
+      `Check out "${name}" at Mergington High School! ${description} — ${schedule}`
+    );
+    const pageUrl = encodeURIComponent(window.location.href);
+    // Store only the activity name; the handler will reconstruct the full text from allActivities
+    const safeActivityName = escapeHtmlAttr(name);
+
+    return `
+      <div class="share-buttons" aria-label="Share this activity">
+        <span class="share-label">Share:</span>
+        <a class="share-btn share-twitter" href="https://twitter.com/intent/tweet?text=${shareText}&url=${pageUrl}" target="_blank" rel="noopener noreferrer" aria-label="Share on Twitter/X" title="Share on Twitter/X">𝕏</a>
+        <a class="share-btn share-facebook" href="https://www.facebook.com/sharer/sharer.php?u=${pageUrl}&quote=${shareText}" target="_blank" rel="noopener noreferrer" aria-label="Share on Facebook" title="Share on Facebook">f</a>
+        <a class="share-btn share-whatsapp" href="https://wa.me/?text=${shareText}%20${pageUrl}" target="_blank" rel="noopener noreferrer" aria-label="Share on WhatsApp" title="Share on WhatsApp">💬</a>
+        <button class="share-btn share-copy" data-activity-name="${safeActivityName}" aria-label="Copy link" title="Copy link">🔗</button>
+      </div>
+    `;
+  }
+
+  // Handle copy-link button clicks (delegated from activities list)
+  activitiesList.addEventListener("click", (event) => {
+    const copyBtn = event.target.closest(".share-copy");
+    if (!copyBtn) return;
+
+    const activityName = copyBtn.dataset.activityName;
+    const details = allActivities[activityName];
+    const copyText = details
+      ? `${activityName}: ${details.description} — ${formatSchedule(details)} ${window.location.href}`
+      : window.location.href;
+
+    navigator.clipboard.writeText(copyText).then(() => {
+      const original = copyBtn.textContent;
+      copyBtn.textContent = "✔";
+      copyBtn.classList.add("share-copy-success");
+      setTimeout(() => {
+        copyBtn.textContent = original;
+        copyBtn.classList.remove("share-copy-success");
+      }, 2000);
+    }).catch(() => {
+      showMessage("Failed to copy to clipboard. Please ensure the browser has clipboard permissions.", "error");
+    });
+  });
+
   // Function to render a single activity card
   function renderActivityCard(name, details) {
     const activityCard = document.createElement("div");
@@ -552,6 +606,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .join("")}
         </ul>
       </div>
+      ${createShareButtonsHtml(name, details.description, formattedSchedule)}
       <div class="activity-card-actions">
         ${
           currentUser
